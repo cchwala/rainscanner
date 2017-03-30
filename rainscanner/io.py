@@ -2,12 +2,88 @@ import wradlib as wrl
 import numpy as np
 import xarray as xr
 import pandas as pd
+import tarfile
 
 from tqdm import tqdm
 
 
+def read_azi_tgz_files_to_xarray_dataset(fn_list,
+                                         elevation,
+                                         tgz_file=False,
+                                         r=None,
+                                         az=None,
+                                         radar_location=None):
+    """ Read azi tgz files and parse them into a xarray DataSet
+
+    Parameters
+    ----------
+
+    fn_list : list
+        List of paths to .azi files
+    elevation : float
+        Radar beam elevation in degree
+    r : array
+        Radar beam ranges in meter
+    az : array
+        Radar beam azimuth in degree from north
+    radar_location : tuple of floats
+        Radar location of the form (latitude, longitude, altitude)
+
+    Returns
+    -------
+
+    xarray.DataSet with radar data and metadata
+
+    """
+
+    # Read the first azi file to get the metadata required for deriving
+    # latitude, longitude and altitude
+    with tarfile.open(fn_list[0]) as tar:
+        f = tar.extractfile(tar.getmembers()[0])
+        temp_data, temp_metadata = read_azi_file(f)
+
+    if r is None:
+        r = temp_metadata['r'] * 1e3
+    if az is None:
+        az = temp_metadata['az']
+    if radar_location is None:
+        radar_location = (temp_metadata['longitude'],
+                          temp_metadata['latitude'],
+                          temp_metadata['altitude'])
+
+    # Build 2D grids for r and az
+    r_grid, az_grid = np.meshgrid(r, az)
+
+    lons, lats, alts = wrl.georef.polar2lonlatalt_n(r_grid,
+                                                    az_grid,
+                                                    elevation,
+                                                    radar_location)
+
+    data_list = []
+    metadata_list = []
+    for fn in fn_list:
+        with tarfile.open(fn) as tar:
+            for tarinfo in tqdm(tar, desc=('Reading ' + fn)):
+                f = tar.extractfile(tarinfo)
+                temp_data, temp_metadata = read_azi_file(f)
+                data_list.append(temp_data)
+                metadata_list.append(temp_metadata)
+
+    time_list = [pd.to_datetime(metadata['date'] + ' ' + metadata['time'])
+                 for metadata in metadata_list]
+
+    ds = xr.Dataset(coords={'r': ('r', r),
+                            'az': ('az', az),
+                            'time': ('time', time_list),
+                            'latitude': (['az', 'r'], lats),
+                            'longitude': (['az', 'r'], lons)},
+                    data_vars={'ZH_raw': (['time', 'az', 'r'], data_list)})
+    return ds
+
+
 def read_azi_files_to_xarray_dataset(fn_list,
                                      elevation,
+                                     tgz_file=False,
                                      r=None,
                                      az=None,
                                      radar_location=None):
@@ -74,14 +150,14 @@ def read_azi_files_to_xarray_dataset(fn_list,
     return ds
 
 
-def read_azi_file(fn):
+def read_azi_file(file_name_or_handle):
     """ Read one RAINSCANNER rainbow .azi files
 
     Parameters
     ----------
 
-    fn : string
-        Path to azi file
+    file_name_or_handle : string or file handle
+        Path to azi file of open file handle
 
     Returns
     -------
@@ -93,7 +169,7 @@ def read_azi_file(fn):
     metadata = {}
 
     # load rainbow file contents to dict
-    rb_dict = wrl.io.read_Rainbow(fn)
+    rb_dict = wrl.io.read_Rainbow(file_name_or_handle)
 
     slice_dict = rb_dict['volume']['scan']['slice']
 
