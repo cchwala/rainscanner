@@ -12,6 +12,7 @@ def read_azi_tgz_files_to_xarray_dataset(fn_list,
                                          tgz_file=False,
                                          r=None,
                                          az=None,
+                                         check_N_az=None,
                                          radar_location=None):
     """ Read azi tgz files and parse them into a xarray DataSet
 
@@ -26,6 +27,9 @@ def read_azi_tgz_files_to_xarray_dataset(fn_list,
         Radar beam ranges in meter
     az : array
         Radar beam azimuth in degree from north
+    check_N_az : int
+        Check number of az values for each file. Skip file if there is a
+        mismatch
     radar_location : tuple of floats
         Radar location of the form (latitude, longitude, altitude)
 
@@ -65,7 +69,8 @@ def read_azi_tgz_files_to_xarray_dataset(fn_list,
         with tarfile.open(fn) as tar:
             for tarinfo in tqdm(tar, desc=('Reading ' + fn)):
                 f = tar.extractfile(tarinfo)
-                temp_data, temp_metadata = read_azi_file(f)
+                temp_data, temp_metadata = read_azi_file(f,
+                                                         check_N_az=check_N_az)
                 data_list.append(temp_data)
                 metadata_list.append(temp_metadata)
 
@@ -86,6 +91,7 @@ def read_azi_files_to_xarray_dataset(fn_list,
                                      tgz_file=False,
                                      r=None,
                                      az=None,
+                                     check_N_az=None,
                                      radar_location=None):
     """ Read .azi files and parse them into a xarray DataSet
 
@@ -100,6 +106,9 @@ def read_azi_files_to_xarray_dataset(fn_list,
         Radar beam ranges in meter
     az : array
         Radar beam azimuth in degree from north
+    check_N_az : int
+        Check number of az values for each file. Skip file if there is a
+        mismatch
     radar_location : tuple of floats
         Radar location of the form (latitude, longitude, altitude)
 
@@ -135,6 +144,11 @@ def read_azi_files_to_xarray_dataset(fn_list,
     metadata_list = []
     for fn in tqdm(fn_list):
         temp_data, temp_metadata = read_azi_file(fn)
+        if check_N_az is not None:
+            if temp_data.shape[0] != check_N_az:
+                print 'N_az = %d instead of %d. --> Skipping %s' % (
+                    temp_data.shape[0], check_N_az, fn)
+                continue
         data_list.append(temp_data)
         metadata_list.append(temp_metadata)
 
