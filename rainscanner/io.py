@@ -69,8 +69,12 @@ def read_azi_tgz_files_to_xarray_dataset(fn_list,
         with tarfile.open(fn) as tar:
             for tarinfo in tqdm(tar, desc=('Reading ' + fn)):
                 f = tar.extractfile(tarinfo)
-                temp_data, temp_metadata = read_azi_file(f,
-                                                         check_N_az=check_N_az)
+                temp_data, temp_metadata = read_azi_file(f)
+                if check_N_az is not None:
+                    if temp_data.shape[0] != check_N_az:
+                        print 'N_az = %d instead of %d. --> Skipping %s' % (
+                            temp_data.shape[0], check_N_az, fn)
+                        continue
                 data_list.append(temp_data)
                 metadata_list.append(temp_metadata)
 
