@@ -9,7 +9,6 @@ from tqdm import tqdm
 
 def read_azi_tgz_files_to_xarray_dataset(fn_list,
                                          elevation,
-                                         tgz_file=False,
                                          r=None,
                                          az=None,
                                          check_N_az=None,
@@ -42,18 +41,29 @@ def read_azi_tgz_files_to_xarray_dataset(fn_list,
 
     # Read the first azi file to get the metadata required for deriving
     # latitude, longitude and altitude
-    with tarfile.open(fn_list[0]) as tar:
-        f = tar.extractfile(tar.getmembers()[0])
-        temp_data, temp_metadata = read_azi_file(f)
+    if check_N_az is None:
+        with tarfile.open(fn_list[0]) as tar:
+            f = tar.extractfile(tar.getmembers()[0])
+            r, az, radar_location = _get_r_az_loc(f)
+    # If check_N_az is given, iterate over azi files in first tgz file
+    # until az is found with the correct length
+    else:
+        with tarfile.open(fn_list[0]) as tar:
+            for file_in_tar in tar.getmembers():
+                f = tar.extractfile(file_in_tar)
+                r, az, radar_location = _get_r_az_loc(f)
+                if len(az) == check_N_az:
+                    break
+                else:
+                    'Trying to get metadata from %s' % f
 
-    if r is None:
-        r = temp_metadata['r'] * 1e3
-    if az is None:
-        az = temp_metadata['az']
-    if radar_location is None:
-        radar_location = (temp_metadata['longitude'],
-                          temp_metadata['latitude'],
-                          temp_metadata['altitude'])
+    # Overwrite r, az, location with arguments if supplied
+    if r is not None:
+        r = r
+    if az is not None:
+        az = az
+    if radar_location is not None:
+        radar_location = radar_location
 
     # Build 2D grids for r and az
     r_grid, az_grid = np.meshgrid(r, az)
@@ -74,6 +84,10 @@ def read_azi_tgz_files_to_xarray_dataset(fn_list,
                     if temp_data.shape[0] != check_N_az:
                         print 'N_az = %d instead of %d. --> Skipping %s' % (
                             temp_data.shape[0], check_N_az, fn)
+                        continue
+                    if len(temp_metadata['az']) != check_N_az:
+                        print 'N_az = %d instead of %d. --> Skipping %s' % (
+                            len(temp_metadata['az']), check_N_az, fn)
                         continue
                 data_list.append(temp_data)
                 metadata_list.append(temp_metadata)
@@ -125,16 +139,25 @@ def read_azi_files_to_xarray_dataset(fn_list,
 
     # Read the first azi file to get the metadata required for deriving
     # latitude, longitude and altitude
-    temp_data, temp_metadata = read_azi_file(fn_list[0])
+    if check_N_az is None:
+        r, az, radar_location = _get_r_az_loc(fn_list[0])
+    # If check_N_az is given, iterate over azi files
+    # until az is found with the correct length
+    else:
+        for fn in fn_list:
+            r, az, radar_location = _get_r_az_loc(fn)
+            if len(az) == check_N_az:
+                break
+            else:
+                'Trying to get metadata from %s' % fn
 
-    if r is None:
-        r = temp_metadata['r'] * 1e3
-    if az is None:
-        az = temp_metadata['az']
-    if radar_location is None:
-        radar_location = (temp_metadata['longitude'],
-                          temp_metadata['latitude'],
-                          temp_metadata['altitude'])
+    # Overwrite r, az, location with arguments if supplied
+    if r is not None:
+        r = r
+    if az is not None:
+        az = az
+    if radar_location is not None:
+        radar_location = radar_location
 
     # Build 2D grids for r and az
     r_grid, az_grid = np.meshgrid(r, az)
@@ -152,6 +175,10 @@ def read_azi_files_to_xarray_dataset(fn_list,
             if temp_data.shape[0] != check_N_az:
                 print 'N_az = %d instead of %d. --> Skipping %s' % (
                     temp_data.shape[0], check_N_az, fn)
+                continue
+            if len(temp_metadata['az']) != check_N_az:
+                print 'N_az = %d instead of %d. --> Skipping %s' % (
+                    len(temp_metadata['az']), check_N_az, fn)
                 continue
         data_list.append(temp_data)
         metadata_list.append(temp_metadata)
@@ -252,3 +279,15 @@ def read_azi_file(file_name_or_handle):
     metadata['beamwidth'] = float(rb_dict['volume']['sensorinfo']['beamwidth'])
 
     return data, metadata
+
+
+def _get_r_az_loc(fn):
+    """ Return r, az and radar_location for one file """
+    temp_data, temp_metadata = read_azi_file(fn)
+
+    r = temp_metadata['r'] * 1e3
+    az = temp_metadata['az']
+    radar_location = (temp_metadata['longitude'],
+                      temp_metadata['latitude'],
+                      temp_metadata['altitude'])
+    return r, az, radar_location
