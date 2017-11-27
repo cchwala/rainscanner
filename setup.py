@@ -34,7 +34,9 @@ setup(
     install_requires=[
         'wradlib',
         'numpy',
+        'pandas',
         'xarray',
         'tqdm',
+        'xmltodict'
     ],
 )

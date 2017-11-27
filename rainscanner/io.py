@@ -82,8 +82,8 @@ def read_azi_tgz_files_to_xarray_dataset(fn_list,
                 temp_data, temp_metadata = read_azi_file(f)
                 if check_N_az is not None:
                     if temp_data.shape[0] != check_N_az:
-                        print 'N_az = %d instead of %d. --> Skipping %s' % (
-                            temp_data.shape[0], check_N_az, fn)
+                        print('N_az = %d instead of %d. --> Skipping %s' %
+                              (temp_data.shape[0], check_N_az, fn))
                         continue
                     if len(temp_metadata['az']) != check_N_az:
                         print 'N_az = %d instead of %d. --> Skipping %s' % (
@@ -173,8 +173,8 @@ def read_azi_files_to_xarray_dataset(fn_list,
         temp_data, temp_metadata = read_azi_file(fn)
         if check_N_az is not None:
             if temp_data.shape[0] != check_N_az:
-                print 'N_az = %d instead of %d. --> Skipping %s' % (
-                    temp_data.shape[0], check_N_az, fn)
+                print('N_az = %d instead of %d. --> Skipping %s' %
+                      (temp_data.shape[0], check_N_az, fn))
                 continue
             if len(temp_metadata['az']) != check_N_az:
                 print 'N_az = %d instead of %d. --> Skipping %s' % (
@@ -260,7 +260,7 @@ def read_azi_file(file_name_or_handle):
     data[data == nodata_x] = nodata
 
     # Parse metadata from `slice`
-    for key, value in slice_dict.iteritems():
+    for key, value in slice_dict.items():
         if key == 'slicedata':
             metadata[u'time'] = value['@time']
             metadata[u'date'] = value['@date']
