@@ -66,12 +66,12 @@ def read_azi_tgz_files_to_xarray_dataset(fn_list,
         radar_location = radar_location
 
     # Build 2D grids for r and az
-    r_grid, az_grid = np.meshgrid(r, az)
+    #r_grid, az_grid = np.meshgrid(r, az)
 
-    lons, lats, alts = wrl.georef.polar2lonlatalt_n(r_grid,
-                                                    az_grid,
-                                                    elevation,
-                                                    radar_location)
+    xyz = wrl.georef.spherical_to_proj(r, az, elevation, radar_location)
+
+    lons = xyz[:, :, 0]
+    lats = xyz[:, :, 1]
 
     data_list = []
     metadata_list = []
@@ -162,9 +162,9 @@ def read_azi_files_to_xarray_dataset(fn_list,
     # Build 2D grids for r and az
     r_grid, az_grid = np.meshgrid(r, az)
 
-    lons, lats, alts = wrl.georef.polar2lonlatalt_n(r_grid,
-                                                    az_grid,
-                                                    elevation,
+    lons, lats, alts = wrl.georef.spherical_to_xyz(r_grid,
+                                                   az_grid,
+                                                   elevation,
                                                     radar_location)
 
     data_list = []
@@ -214,7 +214,7 @@ def read_azi_file(file_name_or_handle):
     metadata = {}
 
     # load rainbow file contents to dict
-    rb_dict = wrl.io.read_Rainbow(file_name_or_handle)
+    rb_dict = wrl.io.read_rainbow(file_name_or_handle)
 
     slice_dict = rb_dict['volume']['scan']['slice']
 
